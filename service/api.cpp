@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <inttypes.h>
 #include <nlohmann/json.hpp>
 #include <cvi_rtsp_service/service.h>
@@ -20,6 +21,7 @@
 #include "venc_helper.h"
 #include "json_helper.h"
 #include "ai_helper.h"
+#include "teaisppq_helper.h"
 #include "isp_info_osd.h"
 #include "vo_helper.h"
 #include "cvi_media_procunit.h"
@@ -29,6 +31,13 @@
 #define _USE_GETFD_
 
 static CVI_RTSP_CTX *gRtspCtx = NULL;
+static const char *teaisppq_scene_str[5] = {
+    "SNOW",
+    "FOG",
+    "BACKLIGHT",
+    "GRASS",
+    "COMMON"
+};
 
 void dump_json(const nlohmann::json &params)
 {
@@ -258,6 +267,56 @@ static int run_retinaface(SERVICE_CTX_ENTITY *ent, VIDEO_FRAME_INFO_S *output)
     return 0;
 }
 
+static void teaisppq_put_text(SERVICE_CTX_ENTITY *ent, VIDEO_FRAME_INFO_S *pstVideoFrame)
+{
+    std::string scene_text;
+
+    // the scene text in yuv
+    int pos_x, pos_y;
+    float c_r, c_g, c_b;
+
+    pos_x = pos_y = 50;
+    c_r = 255;
+    c_g = 0;
+    c_b = 255;
+
+    // get teaisppq scene
+    TEAISP_PQ_ATTR_S stTEAISPPQAttr;
+    TEAISP_PQ_SCENE_INFO scene_info;
+    int scene_id;
+
+    CVI_TEAISP_PQ_GetAttr(ent->ViPipe, &stTEAISPPQAttr);
+    CVI_TEAISP_PQ_GetDetectSceneInfo(ent->ViPipe, &scene_info);
+
+    if (stTEAISPPQAttr.TuningMode != 0) {
+        for (int i = 0; i < TEAISP_SCENE_NUM; ++i) {
+            scene_info.scene_score[i] = 100;
+        }
+        scene_id = (stTEAISPPQAttr.TuningMode -1) % TEAISP_SCENE_NUM;
+        scene_text +=  std::string("Tuning SCENE: ") + std::string(teaisppq_scene_str[scene_id]);
+        scene_text += ", score: 100";
+    } else {
+        scene_id = scene_info.scene;
+        scene_text += std::string("Detect SCENE: ") + std::string(teaisppq_scene_str[scene_id]);
+        scene_text += std::string(", score: ") + std::to_string(scene_info.scene_score[scene_id]);
+    }
+
+    if (stTEAISPPQAttr.Enable && stTEAISPPQAttr.SceneBypass[scene_id] == 0 \
+            && (scene_info.scene_score[scene_id] >= stTEAISPPQAttr.SceneConfThres[scene_id])) {
+        scene_text += " (accpet)";
+    } else {
+        scene_text += " (bypass)";
+        if (!stTEAISPPQAttr.Enable)
+            scene_text += "[disable]";
+        else if (stTEAISPPQAttr.SceneBypass[scene_id] != 0)
+            scene_text += "[scene bypass]";
+        else
+            scene_text += "[Low score]";
+    }
+
+    ent->ai_write_text((char *)scene_text.c_str(), pos_x, pos_y, pstVideoFrame, c_r, c_g, c_b);
+}
+
 static void *rtspTask(void *arg)
 {
     int rc = -1;
@@ -295,6 +354,7 @@ static void *rtspTask(void *arg)
             }
 
             if (ent->enableRetinaFace) {
+                //std::cout << "run face ae ..." << std::endl;
                 rc = run_retinaface(ent, &stVideoFrame);
                 if (0 != rc) {
                     std::cout << "fail to handle retinaface" << std::endl;
@@ -303,7 +363,14 @@ static void *rtspTask(void *arg)
                 }
             }
 
+            if (ent->enableTeaisppq) {
+                if (access("teaisppq_put_text", F_OK) == 0) {
+                    teaisppq_put_text(ent, &stVideoFrame);
+                }
+            }
+
             CVI_S32 s32SetFrameMilliSec = 20000;
+
             if (0 != (rc = CVI_VENC_SendFrame(VencChn, &stVideoFrame, s32SetFrameMilliSec))) {
                 printf("CVI_VENC_SendFrame failed! %d\n", rc);
                 pthread_mutex_unlock(&ent->mutex);
@@ -429,6 +496,11 @@ static int init(SERVICE_CTX *ctx, const nlohmann::json &params)
         return -1;
     }
 
+    if (0 > init_teaisppq(ctx)) {
+        std::cout << "init teaisppq fail" << std::endl;
+        return -1;
+    }
+
     if (0 > init_vo(ctx)) {
         std::cout << "init vo fail" << std::endl;
         return -1;
@@ -451,6 +523,8 @@ static void deinit(SERVICE_CTX *ctx)
     deinit_teaisp(ctx);
 
     deinit_ai(ctx);
+
+    deinit_teaisppq(ctx);
 
     for (int idx=0; idx<ctx->rtsp_num; idx++) {
         deinit_venc(&(ctx->entity[idx]));
@@ -728,6 +802,7 @@ static int service_create(RTSP_SERVICE_HANDLE *hdl, const nlohmann::json &params
         SERVICE_CTX_ENTITY *ent = &ctx->entity[idx];
         ent->running = true;
         pthread_create(&ent->worker, NULL, rtspTask, (void *)ent);
+        pthread_create(&ent->teaisppq_worker, NULL, teaisppqTask, (void *)ent);
     }
 
 #ifdef DEBUG_RTSP
@@ -771,6 +846,7 @@ int CVI_RTSP_SERVICE_Destroy(RTSP_SERVICE_HANDLE *hdl)
         SERVICE_CTX_ENTITY *ent = &ctx->entity[idx];
         ent->running = false;
         pthread_join(ent->worker, NULL);
+        pthread_join(ent->teaisppq_worker, NULL);
     }
 
     CVI_MEDIA_ProcUnitDeInit();

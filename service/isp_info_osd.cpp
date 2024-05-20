@@ -8,8 +8,8 @@
 #include <sys/types.h>
 #include <unistd.h>
 #if MW_VER == 2
-#include <linux/cvi_type.h>
-#include <linux/cvi_comm_video.h>
+#include <cvi_type.h>
+#include <cvi_comm_video.h>
 #else
 #include <cvi_type.h>
 #include <cvi_comm_region.h>

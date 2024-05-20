@@ -82,7 +82,16 @@ void set_venc(SERVICE_CTX_ENTITY *ent, const nlohmann::json &params)
 
 void set_ai(SERVICE_CTX_ENTITY *ent, const nlohmann::json &params)
 {
-    SET_CTX(params, "enable-retinaface", ent->enableRetinaFace);
+    SET_CTX(params, "enable-faceae", ent->enableRetinaFace);
+}
+
+void set_teaisppq(SERVICE_CTX_ENTITY *ent, const nlohmann::json &params)
+{
+    SET_CTX(params, "enable-teaisp-pq", ent->enableTeaisppq);
+    if (ent->enableTeaisppq) {
+        printf("set compress mode(none) for teaisppq...\n");
+        ent->compress_mode = COMPRESS_MODE_NONE;
+    }
 }
 
 void set_hdmi(SERVICE_CTX_ENTITY *ent, const nlohmann::json &params)
@@ -210,7 +219,8 @@ int load_json_config(SERVICE_CTX *ctx, const nlohmann::json &params)
     SET_CTX(params, "vi-vpss-mode", ctx->vi_vpss_mode);
     SET_CTX(params, "buf1-blk-cnt", ctx->buf1_blk_cnt);
     SET_CTX(params, "max-use-tpu-num", ctx->max_use_tpu_num);
-    SET_CTX_STR(params, "model", ctx->model_path);
+    SET_CTX_STR(params, "teaisp-faceae-model", ctx->model_path);
+    SET_CTX_STR(params, "teaisp-pq-model", ctx->teaisppq_model_path);
     SET_CTX(params, "sbm", ctx->sbm.enable);
     SET_CTX(params, "sbm-buf-line", ctx->sbm.bufLine);
     SET_CTX(params, "sbm-buf-size", ctx->sbm.bufSize);
@@ -238,6 +248,7 @@ int load_json_config(SERVICE_CTX *ctx, const nlohmann::json &params)
         set_videosrc(pEntity, video_src_info[i]);
         set_venc(pEntity, video_src_info[i]);
         set_ai(pEntity, video_src_info[i]);
+        set_teaisppq(pEntity, video_src_info[i]);
         set_hdmi(pEntity, video_src_info[i]);
         set_teaisp_bnr(pEntity, video_src_info[i]);
     }

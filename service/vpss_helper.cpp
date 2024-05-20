@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <sample_comm.h>
 #if MW_VER == 2
-#include <linux/cvi_comm_video.h>
+#include <cvi_comm_video.h>
 #endif
 #include <cvi_isp.h>
 #include <cvi_ae.h>
@@ -159,6 +159,8 @@ int init_vi(SERVICE_CTX *ctx)
     CVI_U32 u32BlkSize, u32BlkRotSize, i;
     memset(&stVbConf, 0, sizeof(VB_CONFIG_S));
 
+    int teaisp_bnr_enable_cnt = 0;
+
     SAMPLE_COMM_VI_IniToViCfg(&ctx->stIniCfg, pstViCfg);
     for (i = 0; i < ctx->dev_num; ++i) {
         SERVICE_CTX_ENTITY *ent = &ctx->entity[i];
@@ -173,7 +175,7 @@ int init_vi(SERVICE_CTX *ctx)
         }
 
         if (ent->enableTEAISPBnr) {
-            pstViCfg->astViInfo[i].stPipeInfo.u32TEAISPMode = TEAISP_RAW_MODE;
+            teaisp_bnr_enable_cnt++;
         }
 
         s32Ret = SAMPLE_COMM_VI_GetSizeBySensor(pstViCfg->astViInfo[i].stSnsInfo.enSnsType, &enPicSize);
@@ -202,6 +204,14 @@ int init_vi(SERVICE_CTX *ctx)
         stVbConf.astCommPool[i].u32BlkSize = u32BlkSize;
         stVbConf.astCommPool[i].u32BlkCnt = ent->buf_blk_cnt;
         stVbConf.astCommPool[i].enRemapMode = VB_REMAP_MODE_CACHED;
+    }
+
+    for (int j = 0; j < ctx->dev_num; j++) {
+        if (teaisp_bnr_enable_cnt > 1) {
+            pstViCfg->astViInfo[j].stPipeInfo.u32TEAISPMode = TEAISP_AFTER_FE_RAW_MODE;
+        } else if (teaisp_bnr_enable_cnt == 1) {
+            pstViCfg->astViInfo[j].stPipeInfo.u32TEAISPMode = TEAISP_BEFORE_FE_RAW_MODE;
+        }
     }
 
     for (int k=0; k<ctx->dev_num; ++k) {

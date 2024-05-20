@@ -5,11 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#if MW_VER == 2
-#include <linux/cvi_type.h>
-#else
 #include <cvi_type.h>
-#endif
 
 typedef int (*media_malloc_func)(void **dst, void *src);
 typedef int (*media_relase_func)(void **src);
