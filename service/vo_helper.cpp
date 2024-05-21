@@ -1,6 +1,6 @@
 
 #include <string.h>
-#include <cvi_math.h>
+#include <linux/cvi_math.h>
 #include <sys/types.h>
 #include <sys/prctl.h>
 #include <unistd.h>
@@ -17,9 +17,9 @@
  *                        H E A D E R   F I L E S
  **************************************************************************/
 
-#include <cvi_type.h>
-#include <cvi_comm_vo.h>
-#include <cvi_comm_video.h>
+#include <linux/cvi_type.h>
+#include <linux/cvi_comm_vo.h>
+#include <linux/cvi_comm_video.h>
 //#include "mediapipe_sensor.h"
 
  /**************************************************************************
@@ -1051,7 +1051,7 @@ static int init_vo_cfg_param(SERVICE_CTX_ENTITY *ent, CVI_PARAM_VO_CFG_S *pstVOC
         pstDevCfg->stVoPubAttr.u32BgColor = MEDIA_VO_COLOR_10_RGB_BLACK;
 
         ini_value = 15; // HDMI
-        pstDevCfg->stVoPubAttr.enIntfType = (VO_INTF_TYPE_E)(0x01 << ini_value);
+        pstDevCfg->stVoPubAttr.enIntfType = (0x01L << ini_value);
 
         VO_INTF_SYNC_E enIntfSync = get_vo_format_by_src(ent->src_width, ent->src_height);
 

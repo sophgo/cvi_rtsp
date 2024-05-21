@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <sample_comm.h>
 #if MW_VER == 2
-#include <cvi_comm_video.h>
+#include <linux/cvi_comm_video.h>
 #endif
 #include <cvi_isp.h>
 #include <cvi_ae.h>
