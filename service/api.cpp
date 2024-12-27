@@ -110,7 +110,7 @@ static int default_ctx(SERVICE_CTX *ctx)
     }
 
     // Get config from ini if found.
-    if (!SAMPLE_COMM_VI_ParseIni(&ctx->stIniCfg)) {
+    if (SAMPLE_COMM_VI_ParseIni(&ctx->stIniCfg) != 0) {
         printf("SAMPLE_COMM_VI_ParseIni Failed!\n");
         return -1;
     }

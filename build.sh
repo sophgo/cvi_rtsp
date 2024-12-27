@@ -52,4 +52,3 @@ make clean;
 make CC=${CC} CXX=${CXX} AR=${AR} RANLIB=${RANLIB} LIVE555_DIR=${LIVE555_DIR} MW_DIR=${MW_DIR}
 test $? -ne 0 && echo "build cvi rtsp fail!!!" && exit 1
 exit 0
-
