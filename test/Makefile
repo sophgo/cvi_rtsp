@@ -4,10 +4,10 @@ SRC = $(wildcard ./src/*.cpp)
 BIN = $(SRC:.cpp=)
 
 INNER_INC = -I../include
-INNER_LIB = -L../src -lcvi_rtsp -L../service -lcvi_rtsp_service
+INNER_LIB = -L../src -lcvi_rtsp -L../service -lcvi_rtsp_service -L../src -lsample
 
 CFLAGS += $(INNER_INC) $(LIVE555_INC)
-LDFLAGS += $(INNER_LIB) $(MW_LIB) $(LIVE555_LIB) $(MW_AUDIO_LIB)
+LDFLAGS += $(INNER_LIB) $(MW_LIB) $(LIVE555_LIB)
 
 CPPFLAGS += $(CFLAGS)
 

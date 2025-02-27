@@ -25,7 +25,7 @@
 
 // #define DEBUG_RTSP /* create a task for debug using */
 #define DEFAULT_RTSP_BITRATE 20480
-#define _USE_GETFD_
+//#define _USE_GETFD_
 
 static CVI_RTSP_CTX *gRtspCtx = NULL;
 
@@ -94,7 +94,7 @@ static int default_ctx(SERVICE_CTX *ctx)
     }
 
     // Get config from ini if found.
-    if (SAMPLE_COMM_VI_ParseIni(&ctx->stIniCfg) != CVI_SUCCESS) {
+    if (!SAMPLE_COMM_VI_ParseIni(&ctx->stIniCfg)) {
         printf("SAMPLE_COMM_VI_ParseIni Failed!\n");
         return -1;
     }
@@ -235,7 +235,7 @@ static void *rtspTask(void *arg)
 
             if (getenv("VPSS_DEBUG")) {
                 uint64_t vpss_pts_diff = (stVideoFrame.stVFrame.u64PTS - ent->vpssPrePTS);
-                printf("VPSS PTS: %llu, prePTS: %" PRIu64 ", Diff: %" PRIu64 "\n",
+                printf("VPSS PTS: %llu, prePTS: %" PRIu64 ", Diff:%" PRIu64 "\n",
                 stVideoFrame.stVFrame.u64PTS, ent->vpssPrePTS, vpss_pts_diff);
                 ent->vpssPrePTS = stVideoFrame.stVFrame.u64PTS;
             }
@@ -317,7 +317,7 @@ static void *rtspTask(void *arg)
         if (getenv("VENC_DEBUG")) {
             uint64_t venc_pts_diff = (stStream.pstPack[0].u64PTS - ent->vencPrePTS);
             ent->vencPrePTS = stStream.pstPack[0].u64PTS;
-            printf("VENC pts: %llu, prePTS: %" PRIu64 ", duration: %" PRIu64 "\n", stStream.pstPack[0].u64PTS, ent->vencPrePTS, venc_pts_diff);
+            printf("VENC pts: %llu, prePTS: %" PRIu64 ", duration:%" PRIu64 "\n", stStream.pstPack[0].u64PTS, ent->vencPrePTS, venc_pts_diff);
         }
 
         CVI_MEDIA_ListPushBack(VencChn, &stStream);
@@ -377,7 +377,7 @@ static void deinit(SERVICE_CTX *ctx)
     for (int idx=0; idx<ctx->rtsp_num; idx++) {
         deinit_venc(&(ctx->entity[idx]));
     }
-    CVI_MEDIA_ProcUnitDeInit();
+
     deinit_vi(ctx);
 }
 
@@ -569,7 +569,6 @@ CVI_S32 CVI_IPC_SendToRtsp(VENC_CHN vencChn, VENC_STREAM_S *pstStream, void *par
     }
 
     ret = CVI_RTSP_WriteFrame(pstService->rtspCtx, pstService->entity[vencChn].rtspSession->video, &data);
-
     if (ret != CVI_SUCCESS) {
         SAMPLE_PRT("CVI_RTSP_WriteFrame failed\n");
     }
@@ -690,6 +689,13 @@ int CVI_RTSP_SERVICE_Destroy(RTSP_SERVICE_HANDLE *hdl)
         SERVICE_CTX_ENTITY *ent = &ctx->entity[idx];
         ent->running = false;
         pthread_join(ent->worker, NULL);
+    }
+
+    CVI_MEDIA_ProcUnitDeInit();
+
+    for (int idx = 0; idx < ctx->dev_num; idx++) {
+        SERVICE_CTX_ENTITY *ent = &ctx->entity[idx];
+
         if (idx < ctx->rtsp_num)
             CVI_RTSP_DestroySession(ctx->rtspCtx, ent->rtspSession);
     }

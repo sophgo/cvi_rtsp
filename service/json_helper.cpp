@@ -284,7 +284,7 @@ int load_json_config(SERVICE_CTX *ctx, const nlohmann::json &params)
 
     if (ctx->dev_num > video_src_info.size()) {
         printf("*** Invalid dev number[%d], vidoeSrcSize[%zu]\n", ctx->dev_num, video_src_info.size());
-        ctx->dev_num = video_src_info.size();
+        return -1;
     }
 
     for (int i=0; i<ctx->dev_num; i++) {

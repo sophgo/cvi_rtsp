@@ -7,8 +7,8 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <linux/cvi_type.h>
-#include <linux/cvi_comm_video.h>
+#include <cvi_type.h>
+#include <cvi_comm_video.h>
 #include <cvi_ae.h>
 #include <cvi_region.h>
 #include <cvi_awb.h>
@@ -334,7 +334,7 @@ int isp_info_osd_stop(SERVICE_CTX *ctx)
         if (!ent->enableIspInfoOsd) continue;
 
         for(int osd_idx = 0; osd_idx<OSD_NUM; osd_idx++) {
-            int RgnHdl = pOsdDev->gOsdTaskParam->RgnHdl;
+            int RgnHdl = pOsdDev->gOsdTaskParam[osd_idx].RgnHdl;
             pOsdDev->g_OsdCtx[osd_idx].infoTskRun = false;
             pthread_join(pOsdDev->g_OsdCtx[osd_idx].infoTskId, NULL);
 

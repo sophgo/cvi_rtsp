@@ -4,7 +4,7 @@ SUBDIR = src
 TMP_DIR ?= $(DESTDIR)/../cvi_rtsp
 
 ifeq ($(BUILD_SERVICE),1)
-SUBDIR += service test
+SUBDIR += sample_lib service
 endif
 
 ifeq ($(BUILD_EXAMPLE),1)

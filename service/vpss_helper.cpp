@@ -1,11 +1,10 @@
 #include <unistd.h>
 #include <algorithm>
 #include <sample_comm.h>
-#include <linux/cvi_comm_video.h>
+#include <cvi_comm_video.h>
 #include <cvi_isp.h>
 #include <cvi_ae.h>
 #include <cvi_awb.h>
-#include <cvi_af.h>
 #include <cvi_sys.h>
 #include <cvi_buffer.h>
 #include <cvi_bin.h>
@@ -352,7 +351,10 @@ void deinit_vi(SERVICE_CTX *ctx)
         gCtxVi.DevFlags &= ~(1<<ent->VpssGrp);
 
         if (ent->bVpssBinding) {
-            CVI_BOOL abChnEnable[VPSS_MAX_PHY_CHN_NUM] = {0};
+            CVI_BOOL abChnEnable[VPSS_MAX_PHY_CHN_NUM];
+
+            memset(abChnEnable, 0, sizeof(CVI_BOOL) * VPSS_MAX_PHY_CHN_NUM);
+
             if (ctx->vi_vpss_mode == VI_OFFLINE_VPSS_OFFLINE) {
                 SAMPLE_COMM_VI_UnBind_VPSS(0, ent->ViChn, ent->VpssGrp);
             }
@@ -414,6 +416,7 @@ static ISP_PUB_ATTR_S ISP_PUB_ATTR_DEFAULT = {
 	0
 };
 
+#ifndef ENABLE_ALIOS
 static CVI_S32 replay_startIsp(SERVICE_CTX *ctx)
 {
 	CVI_S32 s32Ret = 0;
@@ -472,6 +475,7 @@ static CVI_S32 replay_startIsp(SERVICE_CTX *ctx)
 
 	return CVI_SUCCESS;
 }
+#endif
 
 static CVI_S32 replay_startViChn(SERVICE_CTX *ctx)
 {
@@ -511,12 +515,19 @@ static CVI_S32 replay_createIsp(SERVICE_CTX *ctx)
 	CVI_S32 s32Ret = CVI_SUCCESS;
 	ISP_PUB_ATTR_S stPubAttr;
 
+#ifdef ENABLE_ALIOS
+	s32Ret = CVI_ISP_Init(0);
+	if (s32Ret != CVI_SUCCESS) {
+		SAMPLE_PRT("ISP Init failed with %#x!\n", s32Ret);
+		return s32Ret;
+	}
+#else
 	s32Ret = replay_startIsp(ctx);
 	if (s32Ret != CVI_SUCCESS) {
 		SAMPLE_PRT("replay_startIsp failed !\n");
 		return s32Ret;
 	}
-
+#endif
 	s32Ret = SAMPLE_COMM_BIN_ReadParaFrombin();
 	if (s32Ret != CVI_SUCCESS) {
 		SAMPLE_PRT("read para fail: %#x,use default para!\n", s32Ret);
@@ -537,13 +548,13 @@ static CVI_S32 replay_createIsp(SERVICE_CTX *ctx)
 		SAMPLE_PRT("SetPubAttr failed with %#x!\n", s32Ret);
 		return s32Ret;
 	}
-
+#ifndef ENABLE_ALIOS
 	s32Ret = SAMPLE_COMM_ISP_Run(0);
 	if (s32Ret != CVI_SUCCESS) {
 		SAMPLE_PRT("ISP_Run failed with %#x!\n", s32Ret);
 		return s32Ret;
 	}
-
+#endif
 	return CVI_SUCCESS;
 }
 
@@ -669,6 +680,7 @@ static CVI_S32 replay_trig_pic(SERVICE_CTX *ctx)
 			CVI_SYS_Munmap(puVirAddr_se, u32BlkSize);
 		}
 	}
+
 	stVideoFrame.stVFrame.u64PhyAddr[0] = u64PhyAddr_le;
 	stVideoFrame.stVFrame.u64PhyAddr[1] = u64PhyAddr_se;
 	pstVideoFrame[0] =  &stVideoFrame;

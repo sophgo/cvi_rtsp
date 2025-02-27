@@ -1,7 +1,7 @@
 ifneq ($(BUILD_PATH),)
 include $(BUILD_PATH)/.config
 else
-CHIP_ARCH ?= CV182X
+CHIP_ARCH ?= CV181X
 endif
 
 CHIP_ARCH_LOWERCASE := $(shell echo $(CHIP_ARCH) | tr A-Z a-z)
@@ -18,6 +18,10 @@ ifeq ($(SDK_VER), glibc_riscv64)
 endif
 ifeq ($(SDK_VER), musl_riscv64)
   CFLAGS += -march=rv64imafdcv0p7xthead -mcmodel=medany -mabi=lp64d
+endif
+
+ifeq ($(ENABLE_ALIOS), y)
+  CFLAGS += -DENABLE_ALIOS
 endif
 
 CFLAGS += -O3 -Wall  -Werror=all -DNO_OPENSSL=1
@@ -46,18 +50,7 @@ PKG_CONFIG_PATH = $(MW_DIR)/pkgconfig
 MW_INC ?= $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) pkg-config --cflags --define-variable=mw_dir=$(MW_DIR) cvi_common cvi_sample) -I$(KERNEL_INC) -I$(MW_DIR)/include/linux
 MW_LIB ?= $(shell PKG_CONFIG_PATH=$(PKG_CONFIG_PATH) pkg-config --libs --define-variable=mw_dir=$(MW_DIR) cvi_common cvi_sample)
 
-SENSOR_LIST_INC ?= -I$(MW_DIR)/component/isp/common
-ISP_INC ?= -I$(MW_DIR)/include/isp/$(CHIP_ARCH_LOWERCASE)
-SAMPLE_COMMON_DIR := $(MW_DIR)/sample/common
-
-CFLAGS += -DARCH_$(CHIP_ARCH)
-
-ifeq ("$(CVIARCH)", "CV181X")
-CFLAGS += -D__CV181X__
-endif
-ifeq ("$(CVIARCH)", "CV180X")
-CFLAGS += -D__CV180X__
-endif
+CFLAGS += -DARCH_$(CHIP_ARCH) -D__$(CHIP_ARCH)__
 
 RAMDISK_DIR ?= $(PWD)/../ramdisk
 CVI_TRACER_INC ?= $(RAMDISK_DIR)/rootfs/public/cvitracer/include
@@ -69,7 +62,7 @@ else
 CVI_TRACER_LIB ?= -L$(RAMDISK_DIR)/rootfs/public/cvitracer/uclibc/lib/3rd/ -lcvitracer
 endif
 
-MW_AUDIO_LIB ?= -L$(MW_DIR)/lib -ldl -lcvi_audio -lcvi_vqe -lcvi_dnvqe -lcvi_ssp2 -lae -lcvi_VoiceEngine -lsbc -lcvi_RES1 -L/$(MW_DIR)/lib/3rd -ltinyalsa
+MW_AUDIO_LIB ?= -L$(MW_DIR)/lib -ldl -lcvi_audio -lcvi_vqe -lae -lcvi_VoiceEngine -lcvi_RES1 -L/$(MW_DIR)/lib/3rd -ltinyalsa
 
 AISDK_DIR ?= $(PWD)/../tdl_sdk
 AISDK_INC ?= -I$(AISDK_DIR)/include

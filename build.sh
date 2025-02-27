@@ -22,12 +22,11 @@ fi
 if [ "${LIVE555_DIR}" = "" ]; then
     mkdir -p prebuilt
 
-    REMOTE_URL=$(git remote -v | grep 'fetch' | awk '{print $2}')
-    ## Try to download from Github Server
-    if echo "$REMOTE_URL" | grep -q "github.com"; then
+    ## release sdk build
+    if [ "${RELEASE_FLAG}" = 1 ]; then
         cp -rpf ${TOP_DIR}/oss/oss_release_tarball/${SDK_VER}/live555.tar.gz prebuilt/live555.tar.gz
     else
-    ## Try to download from FTP Server
+    ## internal sdk build
         curl ftp://${FTP_SERVER_NAME}:${FTP_SERVER_PWD}@${FTP_SERVER_IP}/sw_rls/third_party/latest/${SDK_VER}/live555.tar.gz \
         --output prebuilt/live555.tar.gz
     fi
@@ -50,3 +49,5 @@ RANLIB=${CROSS_COMPILE}ranlib
 
 make clean;
 make CC=${CC} CXX=${CXX} AR=${AR} RANLIB=${RANLIB} LIVE555_DIR=${LIVE555_DIR} MW_DIR=${MW_DIR}
+test $? -ne 0 && echo "build cvi rtsp fail!!!" && exit 1
+exit 0

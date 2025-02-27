@@ -195,7 +195,6 @@ int init_venc(SERVICE_CTX_ENTITY *ent)
             SAMPLE_COMM_VPSS_Bind_VENC(pIc->vpssGrp, pIc->vpssChn, ent->VencChn);
         }
     } else {
-
         commonInputCfg pCic;
         SAMPLE_COMM_VENC_InitCommonInputCfg(&pCic);
         SAMPLE_COMM_VENC_SetModParam(&pCic);
