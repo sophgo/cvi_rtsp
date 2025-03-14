@@ -1,6 +1,6 @@
 SHELL = /bin/bash
 ifeq ($(PARAM_FILE), )
-	PARAM_FILE:=$(MW_PATH)/Makefile.param
+	PARAM_FILE:=$(MW_PATH)/mpi_param.mk
 	include $(PARAM_FILE)
 endif
 
