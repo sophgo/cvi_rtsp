@@ -385,6 +385,11 @@ int get_pq_parameter(int pipe, PQ_PARAMETER_S *p_pq_param)
 	p_pq_param->awb_rgain = awb_info.u16Rgain;
 	p_pq_param->awb_ggain = awb_info.u16Grgain;
 
+	ret = CVI_ISP_QueryInnerStateInfo(pipe, &p_pq_param->stInnerStateInfo);
+
+	if (ret != 0)
+		return -1;
+
 	return 0;
 }
 
