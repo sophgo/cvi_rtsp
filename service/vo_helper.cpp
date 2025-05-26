@@ -1197,6 +1197,15 @@ int deinit_vo(SERVICE_CTX *ctx)
         media_vo_uninit(&g_voCfg);
     }
 
+    for (int idx = 0; idx < ctx->dev_num; idx++) {
+
+        SERVICE_CTX_ENTITY *ent = &ctx->entity[idx];
+
+        if (ent->enableHdmi) {
+            CVI_VPSS_DisableChn(ent->VpssGrp, VO_BIND_VPSS_CHN);
+        }
+    }
+
     return 0;
 }
 
