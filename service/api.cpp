@@ -181,7 +181,7 @@ static int run_retinaface(SERVICE_CTX_ENTITY *ent, VIDEO_FRAME_INFO_S *output)
         return -1;
     }
 
-    ent->ai_retinaface(ent->ai_handle, &preprocessFrame, &face);
+    ent->ai_retinaface(ent->ai_handle, &preprocessFrame, CVI_TDL_SUPPORTED_MODEL_FACE, &face);
     ent->rescale_fd(output, &face);
     if (getenv("AI_DEBUG")) {
         printf("detect %d faces\n", face.size);

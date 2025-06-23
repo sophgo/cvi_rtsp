@@ -138,7 +138,7 @@ int run_teaisppq_vi(SERVICE_CTX_ENTITY *ent)
 	for (int i = 0; i < frmNum; i++) {
 		++inference_count;
 		//std::cout << "pipe: " << pipe << ", ---------- do the inference cnt: " << ++inference_count << " ----------" << std::endl;
-		ent->ai_set_skip_vpss_preprocess(ent->teaisppq_handle, CVI_TDL_SUPPORTED_MODEL_ISP_IMAGE_CLASSIFICATION, true);
+		ent->ai_set_skip_vpss_preprocess(ent->teaisppq_handle, CVI_TDL_SUPPORTED_MODEL_PQ, true);
 
 		auto start_time = std::chrono::high_resolution_clock::now();
 		stVideoFrame[i].stVFrame.u32Width *= 1.5;
@@ -233,12 +233,12 @@ int init_teaisppq(SERVICE_CTX *ctx)
 			return -1;
 		}
 
-		if (ent->ai_open_model(ent->teaisppq_handle, CVI_TDL_SUPPORTED_MODEL_ISP_IMAGE_CLASSIFICATION, ctx->teaisppq_model_path) != CVI_SUCCESS) {
+		if (ent->ai_open_model(ent->teaisppq_handle, CVI_TDL_SUPPORTED_MODEL_PQ, ctx->teaisppq_model_path) != CVI_SUCCESS) {
 			printf("CVI_AI_SetModelPath: %s failed!\n", ctx->teaisppq_model_path);
 			return -1;
 		}
 
-		ent->ai_set_skip_vpss_preprocess(ent->teaisppq_handle, CVI_TDL_SUPPORTED_MODEL_ISP_IMAGE_CLASSIFICATION, true);
+		ent->ai_set_skip_vpss_preprocess(ent->teaisppq_handle, CVI_TDL_SUPPORTED_MODEL_PQ, true);
 	}
 
 	ctx->tdl_ref_count++;

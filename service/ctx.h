@@ -9,6 +9,8 @@
 
 
 #define MAX_PATH_LEN 256
+#define CVI_TDL_SUPPORTED_MODEL_FACE CVI_TDL_SUPPORTED_MODEL_RETINAFACE
+#define CVI_TDL_SUPPORTED_MODEL_PQ CVI_TDL_SUPPORTED_MODEL_ISP_IMAGE_CLASSIFICATION
 
 typedef CVI_S32 (*FD_RescaleFunc)(const VIDEO_FRAME_INFO_S *frame, cvtdl_face_t *face);
 typedef int (*AI_CreateHandle)(void *);
@@ -19,7 +21,7 @@ typedef int (*AI_Service_DestroyHandle)(void *);
 typedef void (*AI_SetSkipVpssPreprocess)(void *, CVI_TDL_SUPPORTED_MODEL_E, bool);
 typedef int (*AI_OpenModel)(void *, CVI_TDL_SUPPORTED_MODEL_E , const char *);
 typedef int (*AI_GetVpssChnConfig)(void *, CVI_TDL_SUPPORTED_MODEL_E, const uint32_t, const uint32_t, const uint32_t i, cvtdl_vpssconfig_t *);
-typedef int (*AI_RetinaFace)(const void *, VIDEO_FRAME_INFO_S *, cvtdl_face_t *);
+typedef int (*AI_RetinaFace)(const void *, VIDEO_FRAME_INFO_S *, CVI_TDL_SUPPORTED_MODEL_E, cvtdl_face_t *);
 typedef int (*AI_Service_FaceDrawRect)(void *, cvtdl_face_t *, VIDEO_FRAME_INFO_S *, const bool, cvtdl_service_brush_t);
 // scene classification
 typedef int (*AI_Image_Cls)(const cvitdl_handle_t, VIDEO_FRAME_INFO_S *, cvtdl_class_meta_t *, cvtdl_isp_meta_t *);
