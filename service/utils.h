@@ -27,8 +27,6 @@ void dump_raw(VIDEO_FRAME_INFO_S *p_raw_input, int frm_num, RAW_BITS raw_bit);
 
 void dump_raw_with_ret(VIDEO_FRAME_INFO_S *p_raw_input, int frm_num, const char *ret_name, RAW_BITS raw_bits);
 
-void CLASS_FREE(cvtdl_class_meta_t *cls_meta);
-
 int get_vi_raw(int pipe, VIDEO_FRAME_INFO_S *frame, int *p_frame_num);
 
 int get_file_raw(std::string &raw_path, VIDEO_FRAME_INFO_S *frame, uint32_t height, uint32_t width, uint32_t buffer_size);

@@ -1,6 +1,7 @@
 #include "ctx.h"
 #include "vpss_helper.h"
-#include <cvi_tdl.h>
+#include <c_apis/tdl_sdk.h>
+#include <c_apis/tdl_utils.h>
 #include <dlfcn.h>
 #include <sys/stat.h>
 #include "cvi_isp.h"
@@ -32,16 +33,15 @@ int load_ai_symbol(SERVICE_CTX *ctx)
 
     for (int idx=0; idx<ctx->dev_num; idx++) {
         SERVICE_CTX_ENTITY *ent = &ctx->entity[idx];
-        LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_CreateHandle2", AI_CreateHandle2, ent->ai_create_handle2);
-        LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_DestroyHandle", AI_DestroyHandle, ent->ai_destroy_handle);
-        LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_SetSkipVpssPreprocess", AI_SetSkipVpssPreprocess, ent->ai_set_skip_vpss_preprocess);
-        LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_OpenModel", AI_OpenModel, ent->ai_open_model);
-        LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_GetVpssChnConfig", AI_GetVpssChnConfig, ent->ai_get_vpss_chn_config);
-        LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_FaceDetection", AI_RetinaFace, ent->ai_retinaface);
-
-        LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_Service_CreateHandle", AI_Service_CreateHandle, ent->ai_service_create_handle);
-        LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_Service_DestroyHandle", AI_Service_DestroyHandle, ent->ai_service_destroy_handle);
-        LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_Service_FaceDrawRect", AI_Service_FaceDrawRect, ent->ai_face_draw_rect);
+        LOAD_SYMBOL(ctx->ai_dl, "TDL_CreateHandle", AI_CreateHandle, ent->ai_create_handle);
+        LOAD_SYMBOL(ctx->ai_dl, "TDL_DestroyHandle", AI_DestroyHandle, ent->ai_destroy_handle);
+        LOAD_SYMBOL(ctx->ai_dl, "TDL_OpenModel", AI_OpenModel, ent->ai_open_model);
+		LOAD_SYMBOL(ctx->ai_dl, "TDL_CloseModel", AI_CloseModel, ent->ai_close_model);
+        LOAD_SYMBOL(ctx->ai_dl, "TDL_FaceDetection", AI_RetinaFace, ent->ai_retinaface);
+        LOAD_SYMBOL(ctx->ai_dl, "TDL_WrapFrame", AI_WrapVPSSFrame, ent->ai_wrap_vpss_frame);
+        LOAD_SYMBOL(ctx->ai_dl, "TDL_FaceDrawRect", AI_FaceDrawRect, ent->ai_face_draw_rect);
+        LOAD_SYMBOL(ctx->ai_dl, "TDL_DestroyImage", AI_FreeVPSSFrame, ent->ai_free_vpss_frame);
+        LOAD_SYMBOL(ctx->ai_dl, "TDL_ReleaseFaceMeta", AI_FreeFaceMeta, ent->ai_free_face_meta);
     }
 
     return 0;
@@ -60,14 +60,9 @@ int init_ai(SERVICE_CTX *ctx)
             return -1;
         }
 
-        //ai default use dev1 create group
-        if (ent->ai_create_handle2(&ent->ai_handle, CVI_VPSS_GetAvailableGrp(), 1) != CVI_SUCCESS) {
-            printf("Create AISDK Handle2 failed!\n");
-            return -1;
-        }
-
-        if (ent->ai_service_create_handle(&ent->ai_service_handle, ent->ai_handle) != CVI_SUCCESS) {
-            printf("Create AISDK FR Service failed!\n");
+        ent->ai_handle = ent->ai_create_handle(ent->tpu_device_id);
+        if (ent->ai_handle == NULL) {
+            printf("Create AISDK Handle failed!\n");
             return -1;
         }
 
@@ -77,42 +72,9 @@ int init_ai(SERVICE_CTX *ctx)
             return -1;
         }
 
-        if (ent->ai_open_model(ent->ai_handle, CVI_TDL_SUPPORTED_MODEL_FACE, ctx->model_path) != CVI_SUCCESS) {
+        if (ent->ai_open_model(ent->ai_handle, TDL_SUPPORTED_MODEL_FACE,
+            ctx->model_path, NULL) != CVI_SUCCESS) {
             printf("CVI_AI_SetModelPath: %s failed!\n", ctx->model_path);
-            return -1;
-        }
-
-        ent->ai_set_skip_vpss_preprocess(ent->ai_handle, CVI_TDL_SUPPORTED_MODEL_FACE, true);
-
-        if (ent->ai_get_vpss_chn_config(ent->ai_handle, CVI_TDL_SUPPORTED_MODEL_FACE, 1920, 1080, 0, &ent->retinaVpssConfig) != CVI_SUCCESS) {
-            printf("CVI_AI_GetVpssChnConfig Failed!\n");
-            return -1;
-        }
-
-        if (ent->retinaVpssConfig.chn_attr.stAspectRatio.enMode != ASPECT_RATIO_AUTO) {
-            LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_RescaleMetaCenterFace", FD_RescaleFunc, ent->rescale_fd);
-        } else {
-            LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_RescaleMetaRBFace", FD_RescaleFunc, ent->rescale_fd);
-        }
-
-        int rc = -1;
-        if (0 != (rc = CVI_VPSS_SetChnScaleCoefLevel(ent->VpssGrp, VPSS_CHN1, ent->retinaVpssConfig.chn_coeff))) {
-            printf("CVI_VPSS_SetChnScaleCoefLevel fail, GRP: %d, CHN: %d, coeff: %d, rc: %d\n", ent->VpssGrp, VPSS_CHN1, ent->retinaVpssConfig.chn_coeff, rc);
-            return -1;
-        }
-
-        if (0 != (rc = CVI_VPSS_SetChnAttr(ent->VpssGrp, VPSS_CHN1, &ent->retinaVpssConfig.chn_attr))) {
-            printf("CVI_VPSS_SetChnAttr fail, GRP: %d, CHN: %d, rc: %d\n", ent->VpssGrp, VPSS_CHN1, rc);
-            return -1;
-        }
-
-        if (0 != (rc = CVI_VPSS_EnableChn(ent->VpssGrp, VPSS_CHN1))) {
-            printf("CVI_VPSS_EnableChn fail, GRP: %d, CHN: %d, rc: %d\n", ent->VpssGrp, VPSS_CHN1, rc);
-            return -1;
-        }
-
-        if (0 != (rc = CVI_VPSS_SetGrpParamfromBin(ent->VpssGrp, 0))) {
-            printf("CVI_VPSS_SetGrpParamfromBin, GRP: %d, rc: %d\n", ent->VpssGrp, rc);
             return -1;
         }
     }
@@ -127,12 +89,10 @@ void deinit_ai(SERVICE_CTX *ctx)
     for (int idx=0; idx<ctx->dev_num; idx++) {
         SERVICE_CTX_ENTITY *ent = &ctx->entity[idx];
         if (!ent->enableRetinaFace) continue;
-        if (ent->ai_service_handle != NULL) {
-            ent->ai_service_destroy_handle(ent->ai_service_handle);
-        }
 
         if (ent->ai_handle != NULL) {
-            ent->ai_destroy_handle(ent->ai_handle);
+            ent->ai_close_model(ent->ai_handle, TDL_SUPPORTED_MODEL_FACE);
+			ent->ai_destroy_handle(ent->ai_handle);
         }
     }
 

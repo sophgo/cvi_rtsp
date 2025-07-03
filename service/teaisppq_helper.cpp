@@ -56,27 +56,27 @@ static int load_teaisppq_symbol(SERVICE_CTX *ctx)
 	for (int idx=0; idx<ctx->dev_num; idx++) {
 		SERVICE_CTX_ENTITY *ent = &ctx->entity[idx];
 		// common
-		LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_CreateHandle2", AI_CreateHandle2, ent->ai_create_handle2);
-		LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_CreateHandle", AI_CreateHandle, ent->ai_create_handle);
-		LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_DestroyHandle", AI_DestroyHandle, ent->ai_destroy_handle);
-		LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_SetSkipVpssPreprocess", AI_SetSkipVpssPreprocess, ent->ai_set_skip_vpss_preprocess);
-		LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_OpenModel", AI_OpenModel, ent->ai_open_model);
-		LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_Service_CreateHandle", AI_Service_CreateHandle, ent->ai_service_create_handle);
-		LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_Service_DestroyHandle", AI_Service_DestroyHandle, ent->ai_service_destroy_handle);
+		LOAD_SYMBOL(ctx->ai_dl, "TDL_CreateHandle", AI_CreateHandle, ent->ai_create_handle);
+		LOAD_SYMBOL(ctx->ai_dl, "TDL_DestroyHandle", AI_DestroyHandle, ent->ai_destroy_handle);
+		LOAD_SYMBOL(ctx->ai_dl, "TDL_OpenModel", AI_OpenModel, ent->ai_open_model);
+		LOAD_SYMBOL(ctx->ai_dl, "TDL_CloseModel", AI_CloseModel, ent->ai_close_model);
+		LOAD_SYMBOL(ctx->ai_dl, "TDL_WrapVPSSFrame", AI_WrapVPSSFrame, ent->ai_wrap_vpss_frame);
+		LOAD_SYMBOL(ctx->ai_dl, "TDL_DestroyImage", AI_FreeVPSSFrame, ent->ai_free_vpss_frame);
 		// scene classification
-		LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_Isp_Image_Classification", AI_Image_Cls, ent->ai_img_cls);
-		LOAD_SYMBOL(ctx->ai_dl, "CVI_TDL_Service_ObjectWriteText", AI_Service_ObjectWriteText, ent->ai_write_text);
+		LOAD_SYMBOL(ctx->ai_dl, "TDL_IspClassification", AI_Image_Cls, ent->ai_img_cls);
+		LOAD_SYMBOL(ctx->ai_dl, "TDL_ObjectWriteText", AI_ObjectWriteText, ent->ai_write_text);
+		LOAD_SYMBOL(ctx->ai_dl, "TDL_ReleaseClassMeta", AI_FreeClassMeta, ent->ai_free_class_meta);
 
 	}
 
 	return 0;
 }
 
-static void set_teaisppq_scene(SERVICE_CTX_ENTITY *ent, cvtdl_class_meta_t &cls_meta)
+static void set_teaisppq_scene(SERVICE_CTX_ENTITY *ent, TDLClass &cls_meta)
 {
 	TEAISP_PQ_SCENE_INFO scene_info;
 
-	switch (cls_meta.cls[0]) {
+	switch (cls_meta.info[0].class_id) {
 	case 0:
 		scene_info.scene = SCENE_SNOW;
 		break;
@@ -94,7 +94,7 @@ static void set_teaisppq_scene(SERVICE_CTX_ENTITY *ent, cvtdl_class_meta_t &cls_
 		break;
 	}
 
-	float score = cls_meta.score[0];
+	float score = cls_meta.info[0].score;
 	scene_info.scene_score = score * 100;
 
 	CVI_TEAISP_PQ_SetSceneInfo(ent->ViPipe, &scene_info);
@@ -105,11 +105,11 @@ int run_teaisppq_vi(SERVICE_CTX_ENTITY *ent)
 	int ret = 0;
 	int frmNum = 1;
 	std::string ret_name;
-	cvtdl_class_meta_t cls_meta = {0};
+	TDLClass cls_meta = {0};
 	VI_PIPE pipe = ent->ViPipe;
 	VIDEO_FRAME_INFO_S stVideoFrame[2] = {};
 	PQ_PARAMETER_S pq_param;
-	cvtdl_isp_meta_t isp_pq;
+	TDLIspMeta isp_pq;
 
 	if (0x00 != get_vi_raw(pipe, stVideoFrame, &frmNum)) {
 		printf("[TEAISP.pq] get vi raw failed...\n");
@@ -132,27 +132,31 @@ int run_teaisppq_vi(SERVICE_CTX_ENTITY *ent)
 	isp_pq.blc += pq_param.stInnerStateInfo.blcOffsetB;
 	isp_pq.blc /= 4;
 
+	cls_meta.size = topK;
+	cls_meta.info = (TDLClassInfo *) malloc(topK * sizeof(TDLClassInfo));
+
 	// inference
 	// TODO: force set the 1, ignore the se frame
 	frmNum = 1;
 	for (int i = 0; i < frmNum; i++) {
 		++inference_count;
 		//std::cout << "pipe: " << pipe << ", ---------- do the inference cnt: " << ++inference_count << " ----------" << std::endl;
-		ent->ai_set_skip_vpss_preprocess(ent->teaisppq_handle, CVI_TDL_SUPPORTED_MODEL_PQ, true);
 
 		auto start_time = std::chrono::high_resolution_clock::now();
-		stVideoFrame[i].stVFrame.u32Width *= 1.5;
-		ret = ent->ai_img_cls(ent->teaisppq_handle, stVideoFrame + i, &cls_meta, &isp_pq);
-		stVideoFrame[i].stVFrame.u32Width /= 1.5;
+		//stVideoFrame[i].stVFrame.u32Width *= 1.5;
+		TDLImage vpss_image = ent->ai_wrap_vpss_frame(stVideoFrame + i, false);
+		ret = ent->ai_img_cls(ent->teaisppq_handle, TDL_SUPPORTED_MODEL_PQ, vpss_image, &isp_pq, &cls_meta);
+		//stVideoFrame[i].stVFrame.u32Width /= 1.5;
 		auto end_time = std::chrono::high_resolution_clock::now();
 		auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 		//std::cout << "inference time: " << duration_ms.count() << " ms" << std::endl;
 
 		if (ret != CVI_SUCCESS) {
 			std::cout << "Error: inference return type: " << ret << std::endl;
-			CLASS_FREE(&cls_meta);
+			ent->ai_free_class_meta(&cls_meta);
 			goto INFERENCE_FAIL;
 		}
+		ent->ai_free_vpss_frame(vpss_image);
 	}
 
 	set_teaisppq_scene(ent, cls_meta);
@@ -161,10 +165,10 @@ int run_teaisppq_vi(SERVICE_CTX_ENTITY *ent)
 	if (access("dump_raw_12_bits", F_OK) == 0 || access("dump_raw_once", F_OK) == 0) {
 		// string format: scene-0_20-1_20-2_20-3_20-4_20-rg_1024-gg_1024-bg_1024-cnt_1.raw
 		int int_cls_score[5] = {0};
-		std::string ret_name = teaisppq_scene_str[cls_meta.cls[0]] + std::string("-");
+		std::string ret_name = teaisppq_scene_str[cls_meta.info[0].class_id] + std::string("-");
 
 		for (int i = 0; i < 5; ++i) {
-			int_cls_score[cls_meta.cls[i]] = cls_meta.score[i] * 100;
+			int_cls_score[cls_meta.info[i].class_id] = cls_meta.info[i].score * 100;
 		}
 
 		for (int i = 0; i < 5; ++i) {
@@ -188,7 +192,7 @@ int run_teaisppq_vi(SERVICE_CTX_ENTITY *ent)
 		dump_raw(stVideoFrame, frmNum, RAW_16_BIT);
 	}
 
-	CLASS_FREE(&cls_meta);
+	ent->ai_free_class_meta(&cls_meta);
 
 INFERENCE_FAIL:
 	// release raw
@@ -220,7 +224,8 @@ int init_teaisppq(SERVICE_CTX *ctx)
 			printf("load_teaisppq_symbol fail\n");
 		}
 
-		if (ent->ai_create_handle(&ent->teaisppq_handle) != CVI_SUCCESS) {
+		ent->teaisppq_handle = ent->ai_create_handle(ent->tpu_device_id);
+		if (ent->teaisppq_handle == NULL) {
 			printf("Create teaisppq handle failed!\n");
 			return -1;
 		}
@@ -233,12 +238,11 @@ int init_teaisppq(SERVICE_CTX *ctx)
 			return -1;
 		}
 
-		if (ent->ai_open_model(ent->teaisppq_handle, CVI_TDL_SUPPORTED_MODEL_PQ, ctx->teaisppq_model_path) != CVI_SUCCESS) {
+		if (ent->ai_open_model(ent->teaisppq_handle, TDL_SUPPORTED_MODEL_PQ,
+			ctx->teaisppq_model_path, NULL) != CVI_SUCCESS) {
 			printf("CVI_AI_SetModelPath: %s failed!\n", ctx->teaisppq_model_path);
 			return -1;
 		}
-
-		ent->ai_set_skip_vpss_preprocess(ent->teaisppq_handle, CVI_TDL_SUPPORTED_MODEL_PQ, true);
 	}
 
 	ctx->tdl_ref_count++;
@@ -256,6 +260,7 @@ void deinit_teaisppq(SERVICE_CTX *ctx)
 		}
 
 		if (ent->teaisppq_handle != NULL) {
+			ent->ai_close_model(ent->teaisppq_handle, TDL_SUPPORTED_MODEL_PQ);
 			ent->ai_destroy_handle(ent->teaisppq_handle);
 		}
 	}

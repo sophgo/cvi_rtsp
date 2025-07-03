@@ -104,6 +104,7 @@ static int default_ctx(SERVICE_CTX *ctx)
         init_venc_cfg(&ent->venc_cfg);
         ent->VencChn = -1;
         ent->ctx = (void *)ctx;
+        ent->tpu_device_id = 0;
         pthread_mutex_init(&ent->mutex, NULL);
     }
 
@@ -133,7 +134,7 @@ static void rtsp_disconnect(const char *ip, void *arg)
     std::cout << "disconnect: " << ip << std::endl;
 }
 
-static void update_face_ae(cvtdl_face_t *face, CVI_U32 width, CVI_U32 height, VI_PIPE ViPipe) {
+static void update_face_ae(TDLFace *face, CVI_U32 width, CVI_U32 height, VI_PIPE ViPipe) {
     ISP_SMART_INFO_S stFaceInfo;
     memset(&stFaceInfo, 0, sizeof(ISP_SMART_INFO_S));
     stFaceInfo.stROI[0].bEnable = 1;
@@ -141,14 +142,14 @@ static void update_face_ae(cvtdl_face_t *face, CVI_U32 width, CVI_U32 height, VI
         float max_area = 0.0;
         size_t max_idx = 0;
         for (size_t i = 0; i < face->size; i++) {
-            cvtdl_bbox_t bbox = face->info[i].bbox;
+            TDLBox bbox = face->info[i].box;
             float area = std::abs(bbox.x2 - bbox.x1) * std::abs(bbox.y2 - bbox.y1);
             if (area > max_area) {
                 max_area = area;
                 max_idx = i;
             }
         }
-        cvtdl_bbox_t max_bbox = face->info[max_idx].bbox;
+        TDLBox max_bbox = face->info[max_idx].box;
         stFaceInfo.stROI[0].u8Num = 1;
         stFaceInfo.stROI[0].u16PosX[0] = max_bbox.x1;
         stFaceInfo.stROI[0].u16PosY[0] = max_bbox.y1;
@@ -167,28 +168,29 @@ static void update_face_ae(cvtdl_face_t *face, CVI_U32 width, CVI_U32 height, VI
 
 static int run_retinaface(SERVICE_CTX_ENTITY *ent, VIDEO_FRAME_INFO_S *output)
 {
-    cvtdl_face_t face = {};
-    cvtdl_service_brush_t brush = {};
+    TDLFace face = {0};
+    TDLBrush brush = {};
     brush.color.b = 53.f;
     brush.color.g = 208.f;
     brush.color.r = 217.f;
     brush.size = 4;
 
-    VIDEO_FRAME_INFO_S preprocessFrame = {};
+    VIDEO_FRAME_INFO_S stVideoFrame = {};
 
-    if (CVI_VPSS_GetChnFrame(ent->VpssGrp, VPSS_CHN1, &preprocessFrame, -1) != CVI_SUCCESS) {
-        printf("CVI_VPSS_GetChnFrame OD Preprocess Frame Failed!");
+    if (CVI_VPSS_GetChnFrame(ent->VpssGrp, VPSS_CHN0, &stVideoFrame, -1) != CVI_SUCCESS) {
+        printf("CVI_VPSS_GetChnFrame Frame For Retinaface Failed!");
         return -1;
     }
 
-    ent->ai_retinaface(ent->ai_handle, &preprocessFrame, CVI_TDL_SUPPORTED_MODEL_FACE, &face);
-    ent->rescale_fd(output, &face);
+    TDLImage vpss_image = ent->ai_wrap_vpss_frame(&stVideoFrame, false);
+
+    ent->ai_retinaface(ent->ai_handle, TDL_SUPPORTED_MODEL_FACE, vpss_image, &face);
     if (getenv("AI_DEBUG")) {
         printf("detect %d faces\n", face.size);
     }
 
     if (face.size > 0) {
-        ent->ai_face_draw_rect(ent->ai_service_handle, &face, output, true, brush);
+        ent->ai_face_draw_rect(&face, (void *)output, true, brush);
     }
 
     if ((((SERVICE_CTX *)ent->ctx)->dev_num == 1) &&
@@ -210,7 +212,9 @@ static int run_retinaface(SERVICE_CTX_ENTITY *ent, VIDEO_FRAME_INFO_S *output)
         update_face_ae(&face, output->stVFrame.u32Width, output->stVFrame.u32Height, ent->ViChn);
     }
 
-    CVI_VPSS_ReleaseChnFrame(ent->VpssGrp, VPSS_CHN1, &preprocessFrame);
+    ent->ai_free_vpss_frame(vpss_image);
+    ent->ai_free_face_meta(&face);
+    CVI_VPSS_ReleaseChnFrame(ent->VpssGrp, VPSS_CHN0, &stVideoFrame);
 
     return 0;
 }

@@ -305,7 +305,7 @@ int init_vpss(SERVICE_CTX *ctx)
 
                 vpss_init_helper(ent->VpssGrp, ent->src_width, ent->src_height,
                         VI_PIXEL_FORMAT, ent->dst_width, ent->dst_height,
-                        ent->enableRetinaFace?PIXEL_FORMAT_NV21:SAMPLE_PIXEL_FORMAT, VPSS_MODE_DUAL, 1, false, 1, ctx->sbm);
+                        SAMPLE_PIXEL_FORMAT, VPSS_MODE_DUAL, 1, false, 1, ctx->sbm);
                 CVI_VPSS_SetGrpParamfromBin(ent->VpssGrp, ent->VpssChn);
                 if (ctx->vi_vpss_mode == VI_OFFLINE_VPSS_OFFLINE) {
                     s32Ret = SAMPLE_COMM_VI_Bind_VPSS(0, ent->ViChn, ent->VpssGrp);
@@ -317,7 +317,7 @@ int init_vpss(SERVICE_CTX *ctx)
             } else {
                 printf("Enable VpssChn %d: %d x %d\n", ent->VpssChn, ent->dst_width, ent->dst_height);
                 VPSS_CHN_ATTR_S vpss_chn_attr = {};
-                vpss_chn_attr_default(&vpss_chn_attr, ent->dst_width, ent->dst_height, ent->enableRetinaFace?PIXEL_FORMAT_NV21:SAMPLE_PIXEL_FORMAT, false);
+                vpss_chn_attr_default(&vpss_chn_attr, ent->dst_width, ent->dst_height, SAMPLE_PIXEL_FORMAT, false);
                 printf("VPSS_CHN_ATTR_S: %d x %d\n", vpss_chn_attr.u32Width, vpss_chn_attr.u32Height);
                 s32Ret = CVI_VPSS_SetChnAttr(ent->VpssGrp, ent->VpssChn, &vpss_chn_attr);
                 if (s32Ret != CVI_SUCCESS) {
@@ -371,9 +371,9 @@ void deinit_vi(SERVICE_CTX *ctx)
                 SAMPLE_COMM_VI_UnBind_VPSS(0, ent->ViChn, ent->VpssGrp);
             }
             abChnEnable[0] = CVI_TRUE;
-            if (ent->enableRetinaFace) {
-                abChnEnable[1] = CVI_TRUE;
-            }
+            //if (ent->enableRetinaFace) {
+            //    abChnEnable[1] = CVI_TRUE;
+            //}
             CVI_S32 s32Ret = SAMPLE_COMM_VPSS_Stop(ent->VpssGrp, abChnEnable);
             if (s32Ret != CVI_SUCCESS) {
                 printf("SAMPLE_COMM_VPSS_Stop Grp:%d, s32Ret: 0x%x\n", 0, s32Ret);
