@@ -149,4 +149,8 @@ struct SERVICE_CTX {
     int teaisppq_turn_pipe;
     unsigned int sensor_number;
     bool teaisppq_on_status_ls[SERVICE_CTX_ENTITY_MAX_NUM];
+
+    // vi suspend/resume
+    CVI_BOOL run_vi_suspend_resume;
+    pthread_t inotify_thread;
 };
