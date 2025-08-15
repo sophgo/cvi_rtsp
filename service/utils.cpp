@@ -204,7 +204,7 @@ void dump_raw(VIDEO_FRAME_INFO_S *p_raw_input, int frm_num, RAW_BITS raw_bits)
 			p_raw_input[0].stVFrame.u32Height,
 			p_raw_input[0].stVFrame.s16OffsetLeft,
 			p_raw_input[0].stVFrame.s16OffsetTop,
-			tv1.tv_sec, tv1.tv_usec,
+			(long int)tv1.tv_sec, (long int)tv1.tv_usec,
 			frame_id);
 
 	CVI_TRACE_LOG(CVI_DBG_WARN, "dump image %s\n", img_name);
