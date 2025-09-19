@@ -173,6 +173,14 @@ void set_teaisp_bnr(SERVICE_CTX_ENTITY *ent, const nlohmann::json &params)
     }
 }
 
+void set_tpu_device_id(SERVICE_CTX_ENTITY *ent, const nlohmann::json &params, uint8_t max_use_tpu_num)
+{
+    SET_CTX(params, "tpu-device-id", ent->tpu_device_id);
+
+    if (ent->tpu_device_id >= max_use_tpu_num)
+        ent->tpu_device_id = max_use_tpu_num - 1;
+}
+
 void set_rtsp(SERVICE_CTX_ENTITY *ent, const nlohmann::json &params)
 {
     if (params.contains("rtsp-url")) {
@@ -342,6 +350,7 @@ int load_json_config(SERVICE_CTX *ctx, const nlohmann::json &params)
         set_teaisp_drc(pEntity, video_src_info[i]);
         set_hdmi(pEntity, video_src_info[i]);
         set_teaisp_bnr(pEntity, video_src_info[i]);
+        set_tpu_device_id(pEntity, video_src_info[i], ctx->max_use_tpu_num);
     }
 
     SET_CTX(params, "replay-mode", ctx->replayMode);

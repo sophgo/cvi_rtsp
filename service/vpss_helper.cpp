@@ -331,7 +331,7 @@ int init_vpss(SERVICE_CTX *ctx)
                 if (ent->enableTeaispDrc) {
                     dstFormat = PIXEL_FORMAT_RGB_888_PLANAR;
                 } else if (ent->enableRetinaFace) {
-                    dstFormat = PIXEL_FORMAT_YUV_PLANAR_420;
+                    dstFormat = PIXEL_FORMAT_NV21;
                 } else {
                     dstFormat = SAMPLE_PIXEL_FORMAT;
                 }
@@ -358,7 +358,7 @@ int init_vpss(SERVICE_CTX *ctx)
                     ent->VpssGrpDrcPost = CVI_VPSS_GetAvailableGrp();
 
                     if (ent->enableRetinaFace) {
-                        dstFormat = PIXEL_FORMAT_YUV_PLANAR_420;
+                        dstFormat = PIXEL_FORMAT_NV21;
                     } else {
                         dstFormat = SAMPLE_PIXEL_FORMAT;
                     }
@@ -371,7 +371,7 @@ int init_vpss(SERVICE_CTX *ctx)
             } else {
                 printf("Enable VpssChn %d: %d x %d\n", ent->VpssChn, ent->dst_width, ent->dst_height);
                 VPSS_CHN_ATTR_S vpss_chn_attr = {};
-                vpss_chn_attr_default(&vpss_chn_attr, ent->dst_width, ent->dst_height, ent->enableRetinaFace?PIXEL_FORMAT_YUV_PLANAR_420:SAMPLE_PIXEL_FORMAT, false);
+                vpss_chn_attr_default(&vpss_chn_attr, ent->dst_width, ent->dst_height, SAMPLE_PIXEL_FORMAT, false);
                 printf("VPSS_CHN_ATTR_S: %d x %d\n", vpss_chn_attr.u32Width, vpss_chn_attr.u32Height);
                 s32Ret = CVI_VPSS_SetChnAttr(ent->VpssGrp, ent->VpssChn, &vpss_chn_attr);
                 if (s32Ret != CVI_SUCCESS) {
@@ -435,9 +435,9 @@ void deinit_vi(SERVICE_CTX *ctx)
 #endif
             }
             abChnEnable[0] = CVI_TRUE;
-            if (ent->enableRetinaFace) {
-                abChnEnable[1] = CVI_TRUE;
-            }
+            //if (ent->enableRetinaFace) {
+            //    abChnEnable[1] = CVI_TRUE;
+            //}
             CVI_S32 s32Ret = SAMPLE_COMM_VPSS_Stop(ent->VpssGrp, abChnEnable);
             if (s32Ret != CVI_SUCCESS) {
                 printf("SAMPLE_COMM_VPSS_Stop Grp:%d, s32Ret: 0x%x\n", 0, s32Ret);
