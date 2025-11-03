@@ -6,7 +6,7 @@
 #include <sys/stat.h>
 #include "cvi_isp.h"
 
-#define AI_LIB "libcvi_tdl.so"
+#define AI_LIB "libtdl_core.so"
 
 #define LOAD_SYMBOL(dl, sym, type, fn) \
 do { \

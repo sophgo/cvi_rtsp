@@ -18,7 +18,7 @@
 #include <math.h>
 #include "cvi_awb.h"
 
-#define TEAISPPQ_LIB "libcvi_tdl.so"
+#define TEAISPPQ_LIB "libtdl_core.so"
 #define USE_VI_RAW
 #define TEAISP_PQ_SLEEP_TIME 200000
 
@@ -60,7 +60,7 @@ static int load_teaisppq_symbol(SERVICE_CTX *ctx)
 		LOAD_SYMBOL(ctx->ai_dl, "TDL_DestroyHandle", AI_DestroyHandle, ent->ai_destroy_handle);
 		LOAD_SYMBOL(ctx->ai_dl, "TDL_OpenModel", AI_OpenModel, ent->ai_open_model);
 		LOAD_SYMBOL(ctx->ai_dl, "TDL_CloseModel", AI_CloseModel, ent->ai_close_model);
-		LOAD_SYMBOL(ctx->ai_dl, "TDL_WrapVPSSFrame", AI_WrapVPSSFrame, ent->ai_wrap_vpss_frame);
+		LOAD_SYMBOL(ctx->ai_dl, "TDL_WrapFrame", AI_WrapVPSSFrame, ent->ai_wrap_vpss_frame);
 		LOAD_SYMBOL(ctx->ai_dl, "TDL_DestroyImage", AI_FreeVPSSFrame, ent->ai_free_vpss_frame);
 		// scene classification
 		LOAD_SYMBOL(ctx->ai_dl, "TDL_IspClassification", AI_Image_Cls, ent->ai_img_cls);
@@ -143,10 +143,25 @@ int run_teaisppq_vi(SERVICE_CTX_ENTITY *ent)
 		//std::cout << "pipe: " << pipe << ", ---------- do the inference cnt: " << ++inference_count << " ----------" << std::endl;
 
 		auto start_time = std::chrono::high_resolution_clock::now();
-		//stVideoFrame[i].stVFrame.u32Width *= 1.5;
+		PIXEL_FORMAT_E pixelFormat = stVideoFrame[i].stVFrame.enPixelFormat;
+		CVI_U32 u32Stride = stVideoFrame[i].stVFrame.u32Stride[0];
+
+		stVideoFrame[i].stVFrame.enPixelFormat = PIXEL_FORMAT_RGB_888;
+		stVideoFrame[i].stVFrame.u32Width = stVideoFrame[i].stVFrame.u32Width * 3 / 2;
+		stVideoFrame[i].stVFrame.u32Stride[0] = stVideoFrame[i].stVFrame.u32Width;
+		stVideoFrame[i].stVFrame.pu8VirAddr[0] = (CVI_U8 *)CVI_SYS_MmapCache(
+												stVideoFrame[i].stVFrame.u64PhyAddr[0],
+												stVideoFrame[i].stVFrame.u32Length[0]);
+		CVI_SYS_IonInvalidateCache(stVideoFrame[i].stVFrame.u64PhyAddr[0],
+									stVideoFrame[i].stVFrame.pu8VirAddr[0],
+									stVideoFrame[i].stVFrame.u32Length[0]);
+		memset(cls_meta.info, 0, topK * sizeof(TDLClassInfo));
 		TDLImage vpss_image = ent->ai_wrap_vpss_frame(stVideoFrame + i, false);
 		ret = ent->ai_img_cls(ent->teaisppq_handle, TDL_SUPPORTED_MODEL_PQ, vpss_image, &isp_pq, &cls_meta);
-		//stVideoFrame[i].stVFrame.u32Width /= 1.5;
+		stVideoFrame[i].stVFrame.u32Stride[0] = u32Stride;
+		stVideoFrame[i].stVFrame.enPixelFormat = pixelFormat;
+		stVideoFrame[i].stVFrame.u32Width = stVideoFrame[i].stVFrame.u32Width * 2 / 3;
+		CVI_SYS_Munmap(stVideoFrame[i].stVFrame.pu8VirAddr[0], stVideoFrame[i].stVFrame.u32Length[0]);
 		auto end_time = std::chrono::high_resolution_clock::now();
 		auto duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
 		//std::cout << "inference time: " << duration_ms.count() << " ms" << std::endl;
