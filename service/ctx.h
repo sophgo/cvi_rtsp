@@ -5,7 +5,7 @@
 #include <sample_comm.h>
 #include <cvi_venc.h>
 #include <cvi_rtsp/rtsp.h>
-#include "c_apis/tdl_sdk.h"
+#include <c_apis/tdl_sdk.h>
 
 
 #define MAX_PATH_LEN 256

@@ -65,7 +65,7 @@ int init_ai(SERVICE_CTX *ctx)
 
         struct stat st = {0};
         if (0 == strlen(ctx->model_path) || 0 != stat(ctx->model_path, &st)) {
-            printf("retina model %s not found!\n", ctx->model_path);
+            printf("retina model %s not found\n", ctx->model_path);
             return -1;
         }
 
